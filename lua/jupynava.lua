@@ -131,6 +131,8 @@ function EvaluateCodeBlock(skipToNextCodeBlock)
     if skipToNextCodeBlock and end_row == vim.fn.line('$') then
         vim.api.nvim_buf_set_lines(0, -1, -1, false, {"# +"})
         vim.api.nvim_buf_set_lines(0, -1, -1, false, {""})
+    elseif end_row == vim.fn.line('$') - 1 then
+        vim.api.nvim_buf_set_lines(0, -1, -1, false, {""})
     end
     if skipToNextCodeBlock then
         vim.api.nvim_win_set_cursor(0, {end_row + 2, 0})
@@ -147,7 +149,7 @@ vim.api.nvim_set_keymap('n', 'ss', "<cmd>lua SendToTerm('direct', vim.fn.getline
 vim.api.nvim_set_keymap('n', 's', "<cmd>set opfunc=v:lua.SendToTerm<CR>g@", {silent = true, noremap = true})
 vim.api.nvim_set_keymap('v', 's', ":<C-u>lua SendToTerm('v')<CR>", {silent = true, noremap = true})
 
-vim.api.nvim_set_keymap('n', '<C-Enter>', "<cmd>lua EvaluateCodeBlock(false)<CR>", {silent = true, noremap = true})
-vim.api.nvim_set_keymap('n', '<S-Enter>', "<cmd>lua EvaluateCodeBlock(true)<CR>", {silent = true, noremap = true})
+vim.keymap.set({'i', 'n', 'v'}, '<C-Enter>', function() EvaluateCodeBlock(false) end, {noremap = true, silent = true})
+vim.keymap.set({'i', 'n', 'v'}, '<S-Enter>', function() EvaluateCodeBlock(true) end, {noremap = true, silent = true})
 
 return M
