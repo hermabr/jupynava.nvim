@@ -10,7 +10,7 @@ M.config = {
 local term_buf_id = nil
 local term_win_id = nil
 
-local function ShowTerm()
+M.ShowTerm = function()
     local current_win = vim.api.nvim_get_current_win()
     local total_width = vim.api.nvim_get_option("columns")
     local split_cmd = total_width < (2 * M.config.term_width) and "botright split" or "botright vsplit"
@@ -39,16 +39,16 @@ local function ShowTerm()
     vim.api.nvim_set_current_win(current_win)
 end
 
-local function HideTerm()
+M.HideTerm = function()
     vim.api.nvim_win_hide(term_win_id)
     term_win_id = nil
 end
 
 function ToggleTerm()
     if term_win_id and vim.api.nvim_win_is_valid(term_win_id) then
-        HideTerm()
+        M.HideTerm()
     else
-        ShowTerm()
+        M.ShowTerm()
     end
 end
 
@@ -70,7 +70,7 @@ end
 
 function SendToTerm(mode, ...)
     if not term_win_id then
-        ShowTerm()
+        M.ShowTerm()
     end
 
     local lines
