@@ -11,7 +11,7 @@
 
 ## TODO
 
-- [ ] Toggle IPython shell in terminal
+- [x] Toggle IPython shell in terminal
 - [ ] Execute code snippets in IPython
 - [ ] Open and edit Jupyter notebooks as Python files
 - [ ] Support for Matplotlib visualization ([kitty](https://sw.kovidgoyal.net/kitty/graphics-protocol/))
