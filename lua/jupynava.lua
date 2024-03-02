@@ -68,6 +68,16 @@ local function captureText(mode)
     return lines
 end
 
+function SendHere()
+    local buf = vim.api.nvim_get_current_buf()
+    if vim.api.nvim_buf_get_option(buf, 'buftype') == 'terminal' then
+        term_buf_id = buf
+        term_win_id = vim.api.nvim_get_current_win()
+    else
+        print("Not in a terminal buffer")
+    end
+end
+
 function SendToTerm(mode, ...)
     if not term_win_id then
         M.ShowTerm()
@@ -114,7 +124,6 @@ function EvaluateCodeBlock(skipToNextCodeBlock)
     if end_row == -1 then end_row = vim.fn.line('$') end
     if start_row > end_row then return end
 
-    -- Retrieve the lines of code within the block
     local lines = vim.api.nvim_buf_get_lines(0, start_row - 1, end_row, false)
 
     SendToTerm('direct', lines)
