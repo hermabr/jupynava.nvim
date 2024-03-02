@@ -12,7 +12,7 @@
 ## TODO
 
 - [x] Toggle IPython shell in terminal
-- [ ] Execute code snippets in IPython
+- [x] Send and execute code snippets in IPython
 - [ ] Open and edit Jupyter notebooks as Python files
 - [ ] Support for Matplotlib visualization ([kitty](https://sw.kovidgoyal.net/kitty/graphics-protocol/))
 - [ ] Manage notebook cells within Neovim
