@@ -75,7 +75,11 @@ function SendToTerm(mode, ...)
 
     local lines
     if mode == 'direct' then
-        lines = {...}
+        if type(...) == 'table' then
+            lines = ...
+        else
+            lines = {...}
+        end
     else
         lines = captureText(mode)
     end
