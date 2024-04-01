@@ -49,7 +49,6 @@ end
 local function send(mode, ...)
     if not _G.send_target then
         _G.TermToggle(73, true)
-        return
     end
     local lines
     if mode == 'direct' then
@@ -74,12 +73,11 @@ function EvaluateCodeBlock(skipToNextCodeBlock)
     local start_row = vim.fn.search(pattern, 'bnW') + 1
     local end_row = vim.fn.search(pattern, 'nW') - 1
     if end_row == -1 then end_row = vim.fn.line('$') end
-    if start_row >= end_row then return end
+    if start_row > end_row then return end
     -- Retrieve the lines of code within the block
     local lines = vim.api.nvim_buf_get_lines(0, start_row - 1, end_row, false)
     if not _G.send_target then
-        print('Target terminal not set. Run :SendHere or :SendTo first.')
-        return
+        _G.TermToggle(73, true)
     end
     _G.send_target.send(lines)
     if skipToNextCodeBlock and end_row == vim.fn.line('$') then
