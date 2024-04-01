@@ -1,8 +1,3 @@
-if _G.loaded_sendtoterm then
-    return
-end
-_G.loaded_sendtoterm = true
-
 local nl = vim.fn.has("win32") == 1 and "\r\n" or "\n"
 
 local function sendHere(term_type)
@@ -12,7 +7,6 @@ local function sendHere(term_type)
         print('This buffer is not a terminal.')
         return
     end
-
     _G.send_target = vim.tbl_extend("force", {
         term_id = bufnr,
         send = function(lines)
@@ -54,17 +48,15 @@ end
 
 local function send(mode, ...)
     if not _G.send_target then
-        print('Target terminal not set. Run :SendHere or :SendTo first.')
+        _G.TermToggle(73, true)
         return
     end
-
     local lines
     if mode == 'direct' then
         lines = {...}
     else
         lines = captureText(mode)
     end
-
     _G.send_target.send(lines)
 end
 
@@ -83,17 +75,13 @@ function EvaluateCodeBlock(skipToNextCodeBlock)
     local end_row = vim.fn.search(pattern, 'nW') - 1
     if end_row == -1 then end_row = vim.fn.line('$') end
     if start_row >= end_row then return end
-
     -- Retrieve the lines of code within the block
     local lines = vim.api.nvim_buf_get_lines(0, start_row - 1, end_row, false)
-
     if not _G.send_target then
         print('Target terminal not set. Run :SendHere or :SendTo first.')
         return
     end
-
     _G.send_target.send(lines)
-
     if skipToNextCodeBlock and end_row == vim.fn.line('$') then
         vim.api.nvim_buf_set_lines(0, -1, -1, false, {"# +"})
         vim.api.nvim_buf_set_lines(0, -1, -1, false, {""})
@@ -105,57 +93,17 @@ function EvaluateCodeBlock(skipToNextCodeBlock)
     end
 end
 
-_G.send = send -- Export send function to global scope for key mapping command to work
-
-local function set_python_keymaps()
-  if vim.bo.filetype == 'python' then
-    vim.keymap.set({'i', 'n', 'v'}, '<C-Enter>', function() EvaluateCodeBlock(false) end, {noremap = true, silent = true})
-    vim.keymap.set({'i', 'n', 'v'}, '<S-Enter>', function() EvaluateCodeBlock(true) end, {noremap = true, silent = true})
-    function JumpUpSection()
-        local cur_row, _ = unpack(vim.api.nvim_win_get_cursor(0))
-        local pattern = '# [-+]$'
-        local found_row = vim.fn.search(pattern, 'bnW')
-        if found_row == 0 then
-            vim.api.nvim_win_set_cursor(0, {1, 0})
-            return
-        end
-        if cur_row == found_row then
-            vim.cmd('normal! k')
-            local new_row = vim.fn.search(pattern, 'bnW')
-            vim.api.nvim_win_set_cursor(0, {found_row, 0})
-        else
-            vim.api.nvim_win_set_cursor(0, {found_row, 0})
-        end
-        vim.cmd('normal! zz')
-        vim.cmd('nohlsearch')
-    end
-    vim.api.nvim_set_keymap('n', '[n', ':lua JumpUpSection()<CR>', {noremap = true, silent = true})
-    vim.api.nvim_set_keymap('n', ']n', '/# [-+]$<CR><CMD>noh<CR>zz', {noremap = true, silent = true})
-
-    vim.api.nvim_set_keymap('n', 'ss', "<cmd>lua _G.send('direct', vim.fn.getline('.'))<CR>", {silent = true, noremap = true})
-    vim.api.nvim_set_keymap('n', 's', "<cmd>set opfunc=v:lua._G.send<CR>g@", {silent = true, noremap = true})
-    vim.api.nvim_set_keymap('v', 's', ":<C-u>lua _G.send('v')<CR>", {silent = true, noremap = true})
-  end
-end
-vim.api.nvim_create_autocmd({"BufEnter", "BufWinEnter", "FileType"}, { pattern = "*.py", callback = set_python_keymaps, })
-
 -- Disable mapping if set
 if vim.g.send_disable_mapping then
     return
 end
 
-function reloadPlugin()
-    _G.loaded_sendtoterm = false
-    dofile("/Users/herman/dev/git/nvim-send-to-term/plugin/send-to-term.lua")
-    print("Plugin reloade")
-end
-
--- Key binding for reloading the plugin
-vim.api.nvim_set_keymap('n', 'S', "<cmd>lua reloadPlugin()<CR>", {noremap = true, silent = true})
-
 local term_buf = nil
 local term_win = nil
-function TermToggle(width)
+function TermToggle(width, open_ipython)
+    if open_ipython == nil then
+        open_ipython = true
+    end
     local current_win = vim.api.nvim_get_current_win()
     local total_width = vim.api.nvim_get_option("columns")
     local total_height = vim.api.nvim_get_option("lines")
@@ -192,7 +140,11 @@ function TermToggle(width)
                 vim.api.nvim_win_set_buf(new_win, term_buf)
             else
                 -- Create a new terminal buffer
-                vim.cmd("terminal ipython")
+                if open_ipython then
+                    vim.cmd("terminal ipython")
+                else
+                    vim.cmd("terminal")
+                end
                 term_buf = vim.api.nvim_get_current_buf()
                 vim.api.nvim_win_set_option(new_win, 'number', false)
                 vim.api.nvim_win_set_option(new_win, 'relativenumber', false)
@@ -206,4 +158,38 @@ function TermToggle(width)
     end
 end
 
-vim.api.nvim_set_keymap('n', '<leader>s', ':lua TermToggle(73)<CR>', {noremap = true, silent = true})
+_G.send = send -- Export send function to global scope for key mapping command to work
+_G.TermToggle = TermToggle
+
+local function set_python_keymaps()
+  if vim.bo.filetype == 'python' then
+    vim.keymap.set({'i', 'n', 'v'}, '<C-Enter>', function() EvaluateCodeBlock(false) end, {noremap = true, silent = true})
+    vim.keymap.set({'i', 'n', 'v'}, '<S-Enter>', function() EvaluateCodeBlock(true) end, {noremap = true, silent = true})
+    function JumpUpSection()
+        local cur_row, _ = unpack(vim.api.nvim_win_get_cursor(0))
+        local pattern = '# [-+]$'
+        local found_row = vim.fn.search(pattern, 'bnW')
+        if found_row == 0 then
+            vim.api.nvim_win_set_cursor(0, {1, 0})
+            return
+        end
+        if cur_row == found_row then
+            vim.cmd('normal! k')
+            local new_row = vim.fn.search(pattern, 'bnW')
+            vim.api.nvim_win_set_cursor(0, {found_row, 0})
+        else
+            vim.api.nvim_win_set_cursor(0, {found_row, 0})
+        end
+        vim.cmd('normal! zz')
+        vim.cmd('nohlsearch')
+    end
+    vim.api.nvim_set_keymap('n', '<leader>s', ':lua TermToggle(73, true)<CR>', {noremap = true, silent = true})
+    vim.api.nvim_set_keymap('n', '<leader>t', ':lua TermToggle(73, false)<CR>', {noremap = true, silent = true})
+    vim.api.nvim_set_keymap('n', '[n', ':lua JumpUpSection()<CR>', {noremap = true, silent = true})
+    vim.api.nvim_set_keymap('n', ']n', '/# [-+]$<CR><CMD>noh<CR>zz', {noremap = true, silent = true})
+    vim.api.nvim_set_keymap('n', 'ss', "<cmd>lua _G.send('direct', vim.fn.getline('.'))<CR>", {silent = true, noremap = true})
+    vim.api.nvim_set_keymap('n', 's', "<cmd>set opfunc=v:lua._G.send<CR>g@", {silent = true, noremap = true})
+    vim.api.nvim_set_keymap('v', 's', ":<C-u>lua _G.send('v')<CR>", {silent = true, noremap = true})
+  end
+end
+vim.api.nvim_create_autocmd({"BufEnter", "BufWinEnter", "FileType"}, { pattern = "*.py", callback = set_python_keymaps, })
