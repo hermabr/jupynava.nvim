@@ -80,12 +80,17 @@ function EvaluateCodeBlock(skipToNextCodeBlock)
         _G.TermToggle(73, true)
     end
     _G.send_target.send(lines)
-    if skipToNextCodeBlock and end_row == vim.fn.line('$') then
-        vim.api.nvim_buf_set_lines(0, -1, -1, false, {"# +"})
-        vim.api.nvim_buf_set_lines(0, -1, -1, false, {""})
+    if skipToNextCodeBlock then
+        local last_line_content = vim.api.nvim_buf_get_lines(0, vim.fn.line('$')-1, vim.fn.line('$'), true)[1]
+        if end_row == vim.fn.line('$') or end_row == vim.fn.line('$') - 1 then
+            if not (last_line_content == "# +" or last_line_content == "# -") then
+                vim.api.nvim_buf_set_lines(0, -1, -1, false, {"# +"})
+            end
+            vim.api.nvim_buf_set_lines(0, -1, -1, false, {""})
+        end
     end
     if skipToNextCodeBlock then
-        vim.defer_fn(function() vim.api.nvim_win_set_cursor(0, {end_row + 2, 0}) end, 10)
+        vim.defer_fn(function() vim.api.nvim_win_set_cursor(0, {math.min(end_row + 2, vim.fn.line('$')), 0}) end, 10)
     else
         vim.defer_fn(function() vim.api.nvim_win_set_cursor(0, original_cursor) end, 10)
     end
