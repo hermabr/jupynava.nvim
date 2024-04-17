@@ -180,8 +180,17 @@ function JumpUpSection()
     vim.cmd('nohlsearch')
 end
 
+local function sendWholeBuffer()
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    if not _G.send_target then
+        _G.TermToggle(73, true)  -- Open terminal with IPython if not already opened
+    end
+    _G.send_target.send(lines)
+end
+
 _G.send = send -- Export send function to global scope for key mapping command to work
 _G.TermToggle = TermToggle
+_G.sendWholeBuffer = sendWholeBuffer
 
 vim.keymap.set({'i', 'n', 'v'}, '<C-Enter>', function() EvaluateCodeBlock(false) end, {noremap = true, silent = true})
 vim.keymap.set({'i', 'n', 'v'}, '<S-Enter>', function() EvaluateCodeBlock(true) end, {noremap = true, silent = true})
@@ -192,3 +201,4 @@ vim.api.nvim_set_keymap('n', ']n', '/# [-+]$<CR><CMD>noh<CR>zz', {noremap = true
 vim.api.nvim_set_keymap('n', 'ss', "<cmd>lua _G.send('direct', vim.fn.getline('.'))<CR>", {silent = true, noremap = true})
 vim.api.nvim_set_keymap('n', 's', "<cmd>set opfunc=v:lua._G.send<CR>g@", {silent = true, noremap = true})
 vim.api.nvim_set_keymap('v', 's', ":<C-u>lua _G.send('v')<CR>", {silent = true, noremap = true})
+vim.api.nvim_set_keymap('n', 'gs', "<cmd>lua _G.sendWholeBuffer()<CR>", {noremap = true, silent = true})
