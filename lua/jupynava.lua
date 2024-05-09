@@ -202,3 +202,10 @@ vim.api.nvim_set_keymap('n', 'ss', "<cmd>lua _G.send('direct', vim.fn.getline('.
 vim.api.nvim_set_keymap('n', 's', "<cmd>set opfunc=v:lua._G.send<CR>g@", {silent = true, noremap = true})
 vim.api.nvim_set_keymap('v', 's', ":<C-u>lua _G.send('v')<CR>", {silent = true, noremap = true})
 vim.api.nvim_set_keymap('n', 'gs', "<cmd>lua _G.sendWholeBuffer()<CR>", {noremap = true, silent = true})
+
+vim.api.nvim_create_autocmd({"BufRead", "BufNewFile"}, {
+  pattern = {"*.ipynb"},
+  callback = function()
+    vim.bo.filetype = "python"
+  end
+})
