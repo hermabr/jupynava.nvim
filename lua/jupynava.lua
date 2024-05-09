@@ -69,28 +69,25 @@ function EvaluateCodeBlock(skipToNextCodeBlock)
     if current_line == "# +" or current_line == "# -" then
         vim.cmd('normal! j')
     end
-    local pattern = '# [-+]$'
-    local start_row = vim.fn.search(pattern, 'bnW') + 1
-    local end_row = vim.fn.search(pattern, 'nW') - 1
+    local start_pattern = '# [+]$'
+    local end_pattern = '# [-+]$'
+    local start_row = vim.fn.search(start_pattern, 'bnW') + 1
+    local end_row = vim.fn.search(end_pattern, 'nW') - 1
     if end_row == -1 then end_row = vim.fn.line('$') end
     if start_row > end_row then return end
-    -- Retrieve the lines of code within the block
     local lines = vim.api.nvim_buf_get_lines(0, start_row - 1, end_row, false)
     if not _G.send_target then
         _G.TermToggle(73, true)
     end
     _G.send_target.send(lines)
     if skipToNextCodeBlock then
-        local last_line_content = vim.api.nvim_buf_get_lines(0, vim.fn.line('$')-1, vim.fn.line('$'), true)[1]
-        if end_row == vim.fn.line('$') or end_row == vim.fn.line('$') - 1 then
-            if not (last_line_content == "# +" or last_line_content == "# -") then
-                vim.api.nvim_buf_set_lines(0, -1, -1, false, {"# +"})
-            end
-            vim.api.nvim_buf_set_lines(0, -1, -1, false, {""})
+        local next_start = vim.fn.search(start_pattern, 'W')
+        if next_start == 0 then
+            vim.api.nvim_buf_set_lines(0, -1, -1, false, {"# +", ""})
+            vim.defer_fn(function() vim.api.nvim_win_set_cursor(0, {vim.fn.line('$'), 0}) end, 10)
+        else
+            vim.defer_fn(function() vim.api.nvim_win_set_cursor(0, {next_start, 0}) end, 10)
         end
-    end
-    if skipToNextCodeBlock then
-        vim.defer_fn(function() vim.api.nvim_win_set_cursor(0, {math.min(end_row + 2, vim.fn.line('$')), 0}) end, 10)
     else
         vim.defer_fn(function() vim.api.nvim_win_set_cursor(0, original_cursor) end, 10)
     end
