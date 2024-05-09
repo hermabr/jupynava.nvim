@@ -61,7 +61,7 @@ class Jupynava(object):
                 lines.append(cell.source + '\n')
                 previous_cell_markdown = False
             elif cell.cell_type == 'markdown':
-                if lines:
+                if lines and not previous_cell_markdown:
                     lines.append('\n')
                 lines.append('# -\n')
                 markdown_lines = cell.source.split('\n')
@@ -79,7 +79,11 @@ class Jupynava(object):
                 current_delimiter = part.strip()
             else:
                 if current_delimiter == '# -':
-                    stripped_part = '\n'.join(line[2:].rstrip() if line.startswith('# ') else line.rstrip() for line in part[1:-1].split('\n'))
+                    if part[0] == "\n":
+                        part = part[1:]
+                    if part[-1] == "\n":
+                        part = part[:-1]
+                    stripped_part = '\n'.join(line[2:].rstrip() if line.startswith('# ') else line.rstrip() for line in part.split('\n'))
                     notebook.cells.append(new_markdown_cell(stripped_part))
                 else:
                     stripped_part = part.strip('\n')
