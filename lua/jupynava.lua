@@ -86,7 +86,10 @@ function EvaluateCodeBlock(skipToNextCodeBlock)
             vim.api.nvim_buf_set_lines(0, -1, -1, false, {"# +", ""})
             vim.defer_fn(function() vim.api.nvim_win_set_cursor(0, {vim.fn.line('$'), 0}) end, 10)
         else
-            vim.defer_fn(function() vim.api.nvim_win_set_cursor(0, {next_start, 0}) end, 10)
+            if next_start == vim.fn.line('$') then
+                vim.api.nvim_buf_set_lines(0, next_start, next_start, false, {""})
+            end
+            vim.defer_fn(function() vim.api.nvim_win_set_cursor(0, {next_start + 1, 0}) end, 10)
         end
     else
         vim.defer_fn(function() vim.api.nvim_win_set_cursor(0, original_cursor) end, 10)
