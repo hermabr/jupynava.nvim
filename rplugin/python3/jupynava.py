@@ -3,6 +3,8 @@ import nbformat
 from pathlib import Path
 from nbformat.v4 import new_notebook, new_code_cell, new_markdown_cell
 import re
+import hashlib
+from collections import defaultdict
 
 @neovim.plugin
 class Jupynava(object):
@@ -71,6 +73,20 @@ class Jupynava(object):
         return ''.join(lines)
 
     def create_notebook_from_script(self, script_content):
+        def hash_content(content):
+            return hashlib.md5(content.encode('utf-8')).hexdigest()
+
+        def create_cell(cell_type, stripped_part, content_count):
+            cell_hash = hash_content(stripped_part)
+            content_count[cell_hash] += 1
+            cell_id = f"{cell_hash}-{content_count[cell_hash]:x}"
+            if cell_type == 'markdown':
+                cell = new_markdown_cell(stripped_part, id=cell_id)
+            else:
+                cell = new_code_cell(stripped_part, id=cell_id)
+            return cell
+
+        content_count = defaultdict(int)
         parts_with_delimiters = re.split(r'(^# [\+\-]$)', script_content, flags=re.MULTILINE)
         notebook = new_notebook()
         current_delimiter = None
@@ -84,10 +100,12 @@ class Jupynava(object):
                     if part[-1] == "\n":
                         part = part[:-1]
                     stripped_part = '\n'.join(line[2:].rstrip() if line.startswith('# ') else line.rstrip() for line in part.split('\n'))
-                    notebook.cells.append(new_markdown_cell(stripped_part))
+                    cell = create_cell('markdown', stripped_part, content_count)
+                    notebook.cells.append(cell)
                 else:
                     stripped_part = part.strip('\n')
                     if stripped_part:
-                        notebook.cells.append(new_code_cell(stripped_part))
+                        cell = create_cell('code', stripped_part, content_count)
+                        notebook.cells.append(cell)
                 current_delimiter = None
         return notebook
