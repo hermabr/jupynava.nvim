@@ -2,6 +2,20 @@
 
 *jupynava.nvim* brings the power of Jupyter notebooks into the efficient and customizable environment of Neovim. This extension is designed for developers and data scientists who love working in Neovim and want to integrate Python, Jupyter notebooks, and data visualization seamlessly into their development workflow.
 
+# Installation
+
+For `packer.nvim`:
+
+```lua
+use { 'hermabr/jupynava.nvim', run = ':UpdateRemotePlugins' }
+```
+
+For `vim-plug`:
+
+```vim
+Plug 'hermabr/jupynava.nvim', { 'do': ':UpdateRemotePlugins' }
+```
+
 ## Features (coming soon)
 
 - *Integrated Jupyter Experience*: Utilize the built-in terminal of Neovim to run Jupyter notebooks directly within your editor.
