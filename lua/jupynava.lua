@@ -7,23 +7,43 @@ local function sendHere(term_type)
         print('This buffer is not a terminal.')
         return
     end
+    
     _G.send_target = vim.tbl_extend("force", {
         term_id = bufnr,
         send = function(lines)
             local self = _G.send_target
             local line
+            local last_line = lines[#lines]
+            local is_indented = last_line:match("^%s+") ~= nil
+            
             if #lines > 1 then
-                line = self.begin .. table.concat(lines, self.newline) .. self['end']
+                line = self.begin .. table.concat(lines, self.newline)
+                -- Add appropriate ending based on indentation
+                if is_indented then
+                    -- For indented code blocks, add two newlines plus an execution newline
+                    line = line .. self.newline .. self.newline .. "\x1b[201~" .. nl
+                else
+                    -- For non-indented code, still need the execution newline
+                    line = line .. "\x1b[201~" .. nl
+                end
             else
-                line = lines[1] .. nl
+                -- For single line submissions
+                if is_indented then
+                    -- Indented single line needs two newlines plus execution newline
+                    line = self.begin .. lines[1] .. self.newline .. self.newline .. "\x1b[201~" .. nl
+                else
+                    -- Non-indented single line just needs a single execution newline
+                    line = lines[1] .. nl
+                end
             end
+            
             local channel_id = vim.api.nvim_buf_get_option(self.term_id, 'channel')
             vim.api.nvim_chan_send(channel_id, line)
             if vim.v.count1 > 1 then
                 vim.cmd('sleep 100m')
             end
         end
-    }, {begin = "\x1b[200~", ['end'] = "\x1b[201~\r\r\r", newline = nl})
+    }, {begin = "\x1b[200~", ['end'] = "", newline = nl})
 end
 
 vim.api.nvim_create_user_command('SendHere', function()
@@ -120,7 +140,7 @@ function EvaluateCodeBlock(skipToNextCodeBlock)
                 -- Create a new cell at the end of the file
                 vim.api.nvim_buf_set_lines(0, -1, -1, false, {"", "```{python}", "", "```"})
                 vim.defer_fn(function() 
-                    vim.api.nvim_win_set_cursor(0, {vim.fn.line('$') - 2, 0}) 
+                    vim.api.nvim_win_set_cursor(0, {vim.fn.line('$') - 1, 0}) 
                 end, 10)
             else
                 -- Move to the line after the next code block start
