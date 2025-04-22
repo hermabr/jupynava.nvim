@@ -62,43 +62,183 @@ end
 function EvaluateCodeBlock(skipToNextCodeBlock)
     local original_cursor = vim.api.nvim_win_get_cursor(0)
     local mode = vim.api.nvim_get_mode().mode
-    if mode == 'i' or mode == 'v' or mode == 'V' or mode == '' then
+    if mode == 'i' or mode == 'v' or mode == 'V' or mode == '' then
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'n', true)
     end
-    local current_line = vim.api.nvim_get_current_line()
-    if current_line == "# +" or current_line == "# -" then
-        vim.cmd('normal! j')
-    end
-    local start_pattern = '# [+]$'
-    local end_pattern = '# [-+]$'
-    local start_row = vim.fn.search(start_pattern, 'bnW') + 1
-    local end_row = vim.fn.search(end_pattern, 'nW') - 1
-    if end_row == -1 then end_row = vim.fn.line('$') end
-    if start_row > end_row then return end
-    local lines = vim.api.nvim_buf_get_lines(0, start_row - 1, end_row, false)
-    if not _G.send_target then
-        _G.TermToggle(73, true)
-    end
-    _G.send_target.send(lines)
-    if skipToNextCodeBlock then
-        local next_start = vim.fn.search(start_pattern, 'W')
-        if next_start == 0 then
-            vim.api.nvim_buf_set_lines(0, -1, -1, false, {"# +", ""})
-            vim.defer_fn(function() vim.api.nvim_win_set_cursor(0, {vim.fn.line('$'), 0}) end, 10)
-        else
-            if next_start == vim.fn.line('$') then
-                vim.api.nvim_buf_set_lines(0, next_start, next_start, false, {""})
+    
+    local filetype = vim.bo.filetype
+    local is_quarto = vim.fn.expand('%:e') == 'qmd'
+    
+    if is_quarto then
+        -- For Quarto files, look for ```{something} and ``` blocks
+        local start_pattern = '^```{.*}$'
+        local end_pattern = '^```$'
+        
+        -- Find the start of the code block (move upwards if needed)
+        local start_row = vim.fn.search(start_pattern, 'bcnW')
+        if start_row == 0 then
+            vim.api.nvim_err_writeln("error: Could not find code block start")
+            return
+        end
+        
+        -- Make sure we don't find an end marker before a start marker (invalid nesting)
+        local prev_end = vim.fn.search(end_pattern, 'bnW')
+        if prev_end > 0 and prev_end > start_row then
+            vim.api.nvim_err_writeln("error: Invalid code block structure")
+            return
+        end
+        
+        -- Find the end of the code block
+        local end_row = vim.fn.search(end_pattern, 'nW')
+        if end_row == 0 then
+            vim.api.nvim_err_writeln("error: Could not find code block end")
+            return
+        end
+        
+        -- Extract and send the code (skip the delimiter lines)
+        local lines = vim.api.nvim_buf_get_lines(0, start_row, end_row - 1, false)
+        if #lines == 0 then
+            return
+        end
+        
+        -- Extract content, ignoring the first line (the ```{something} line)
+        local code_lines = {}
+        for i = 1, #lines do
+            table.insert(code_lines, lines[i])
+        end
+        
+        if not _G.send_target then
+            _G.TermToggle(73, true)
+        end
+        
+        _G.send_target.send(code_lines)
+        
+        if skipToNextCodeBlock then
+            -- Try to find the next code block
+            local next_start = vim.fn.search(start_pattern, 'W')
+            if next_start == 0 then
+                -- Create a new cell at the end of the file
+                vim.api.nvim_buf_set_lines(0, -1, -1, false, {"", "```{python}", "", "```"})
+                vim.defer_fn(function() 
+                    vim.api.nvim_win_set_cursor(0, {vim.fn.line('$') - 2, 0}) 
+                end, 10)
+            else
+                -- Move to the line after the next code block start
+                vim.defer_fn(function() 
+                    vim.api.nvim_win_set_cursor(0, {next_start + 1, 0})
+                end, 10)
             end
-            vim.defer_fn(function() vim.api.nvim_win_set_cursor(0, {next_start + 1, 0}) end, 10)
+        else
+            -- Return to the original cursor position
+            vim.defer_fn(function() 
+                vim.api.nvim_win_set_cursor(0, original_cursor) 
+            end, 10)
         end
     else
-        vim.defer_fn(function() vim.api.nvim_win_set_cursor(0, original_cursor) end, 10)
+        -- Original code for Python files with # + and # - markers
+        local current_line = vim.api.nvim_get_current_line()
+        if current_line == "# +" or current_line == "# -" then
+            vim.cmd('normal! j')
+        end
+        local start_pattern = '# [+]$'
+        local end_pattern = '# [-+]$'
+        local start_row = vim.fn.search(start_pattern, 'bnW') + 1
+        local end_row = vim.fn.search(end_pattern, 'nW') - 1
+        if end_row == -1 then end_row = vim.fn.line('$') end
+        if start_row > end_row then return end
+        local lines = vim.api.nvim_buf_get_lines(0, start_row - 1, end_row, false)
+        if not _G.send_target then
+            _G.TermToggle(73, true)
+        end
+        _G.send_target.send(lines)
+        if skipToNextCodeBlock then
+            local next_start = vim.fn.search(start_pattern, 'W')
+            if next_start == 0 then
+                vim.api.nvim_buf_set_lines(0, -1, -1, false, {"# +", ""})
+                vim.defer_fn(function() vim.api.nvim_win_set_cursor(0, {vim.fn.line('$'), 0}) end, 10)
+            else
+                if next_start == vim.fn.line('$') then
+                    vim.api.nvim_buf_set_lines(0, next_start, next_start, false, {""})
+                end
+                vim.defer_fn(function() vim.api.nvim_win_set_cursor(0, {next_start + 1, 0}) end, 10)
+            end
+        else
+            vim.defer_fn(function() vim.api.nvim_win_set_cursor(0, original_cursor) end, 10)
+        end
     end
 end
 
 -- Disable mapping if set
 if vim.g.send_disable_mapping then
     return
+end
+
+function JumpUpSection()
+    local is_quarto = vim.fn.expand('%:e') == 'qmd'
+    local cur_row, _ = unpack(vim.api.nvim_win_get_cursor(0))
+    
+    if is_quarto then
+        local pattern = '^```{.*}$'
+        local found_row = vim.fn.search(pattern, 'bnW')
+        
+        if found_row == 0 then
+            vim.api.nvim_win_set_cursor(0, {1, 0})
+            return
+        end
+        
+        if cur_row == found_row then
+            vim.cmd('normal! k')
+            local new_row = vim.fn.search(pattern, 'bnW')
+            if new_row > 0 then
+                vim.api.nvim_win_set_cursor(0, {new_row, 0})
+            else
+                vim.api.nvim_win_set_cursor(0, {1, 0})
+            end
+        else
+            vim.api.nvim_win_set_cursor(0, {found_row, 0})
+        end
+    else
+        local pattern = '# [-+]$'
+        local found_row = vim.fn.search(pattern, 'bnW')
+        
+        if found_row == 0 then
+            vim.api.nvim_win_set_cursor(0, {1, 0})
+            return
+        end
+        
+        if cur_row == found_row then
+            vim.cmd('normal! k')
+            local new_row = vim.fn.search(pattern, 'bnW')
+            vim.api.nvim_win_set_cursor(0, {found_row, 0})
+        else
+            vim.api.nvim_win_set_cursor(0, {found_row, 0})
+        end
+    end
+    
+    vim.cmd('normal! zz')
+    vim.cmd('nohlsearch')
+end
+
+function JumpDownSection()
+    local is_quarto = vim.fn.expand('%:e') == 'qmd'
+    
+    if is_quarto then
+        local pattern = '^```{.*}$'
+        vim.fn.search(pattern, 'W')
+    else
+        vim.fn.search('# [-+]$', 'W')
+    end
+    
+    vim.cmd('normal! zz')
+    vim.cmd('nohlsearch')
+end
+
+local function sendWholeBuffer()
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    if not _G.send_target then
+        _G.TermToggle(73, true)  -- Open terminal with IPython if not already opened
+    end
+    _G.send_target.send(lines)
 end
 
 local term_buf = nil
@@ -161,33 +301,6 @@ function TermToggle(width, open_ipython)
     end
 end
 
-function JumpUpSection()
-    local cur_row, _ = unpack(vim.api.nvim_win_get_cursor(0))
-    local pattern = '# [-+]$'
-    local found_row = vim.fn.search(pattern, 'bnW')
-    if found_row == 0 then
-        vim.api.nvim_win_set_cursor(0, {1, 0})
-        return
-    end
-    if cur_row == found_row then
-        vim.cmd('normal! k')
-        local new_row = vim.fn.search(pattern, 'bnW')
-        vim.api.nvim_win_set_cursor(0, {found_row, 0})
-    else
-        vim.api.nvim_win_set_cursor(0, {found_row, 0})
-    end
-    vim.cmd('normal! zz')
-    vim.cmd('nohlsearch')
-end
-
-local function sendWholeBuffer()
-    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-    if not _G.send_target then
-        _G.TermToggle(73, true)  -- Open terminal with IPython if not already opened
-    end
-    _G.send_target.send(lines)
-end
-
 _G.send = send -- Export send function to global scope for key mapping command to work
 _G.TermToggle = TermToggle
 _G.sendWholeBuffer = sendWholeBuffer
@@ -197,7 +310,7 @@ vim.keymap.set({'i', 'n', 'v'}, '<S-Enter>', function() EvaluateCodeBlock(true) 
 vim.api.nvim_set_keymap('n', '<leader>s', ':lua TermToggle(73, true)<CR>', {noremap = true, silent = true})
 vim.api.nvim_set_keymap('n', '<leader>t', ':lua TermToggle(73, false)<CR>', {noremap = true, silent = true})
 vim.api.nvim_set_keymap('n', '[n', ':lua JumpUpSection()<CR>', {noremap = true, silent = true})
-vim.api.nvim_set_keymap('n', ']n', '/# [-+]$<CR><CMD>noh<CR>zz', {noremap = true, silent = true})
+vim.api.nvim_set_keymap('n', ']n', ':lua JumpDownSection()<CR>', {noremap = true, silent = true})
 vim.api.nvim_set_keymap('n', 'ss', "<cmd>lua _G.send('direct', vim.fn.getline('.'))<CR>", {silent = true, noremap = true})
 vim.api.nvim_set_keymap('n', 's', "<cmd>set opfunc=v:lua._G.send<CR>g@", {silent = true, noremap = true})
 vim.api.nvim_set_keymap('v', 's', ":<C-u>lua _G.send('v')<CR>", {silent = true, noremap = true})
