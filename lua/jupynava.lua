@@ -199,39 +199,58 @@ function JumpUpSection()
     
     if is_quarto then
         local pattern = '^```{.*}$'
-        local found_row = vim.fn.search(pattern, 'bnW')
+        -- First find the start of the current cell
+        local current_cell_start = vim.fn.search(pattern, 'bcnW')
         
-        if found_row == 0 then
+        if current_cell_start == 0 then
+            -- No cells found above, go to the beginning of file
             vim.api.nvim_win_set_cursor(0, {1, 0})
             return
         end
         
-        if cur_row == found_row then
-            vim.cmd('normal! k')
-            local new_row = vim.fn.search(pattern, 'bnW')
-            if new_row > 0 then
-                vim.api.nvim_win_set_cursor(0, {new_row, 0})
-            else
-                vim.api.nvim_win_set_cursor(0, {1, 0})
-            end
+        -- Save the position before searching
+        local save_cursor = vim.api.nvim_win_get_cursor(0)
+        
+        -- Jump to one line before the current cell start to search backwards
+        vim.api.nvim_win_set_cursor(0, {current_cell_start - 1, 0})
+        
+        -- Now search for the previous cell
+        local prev_cell = vim.fn.search(pattern, 'bnW')
+        
+        if prev_cell > 0 then
+            -- Jump to the line after the cell marker
+            vim.api.nvim_win_set_cursor(0, {prev_cell + 1, 0})
         else
-            vim.api.nvim_win_set_cursor(0, {found_row, 0})
+            -- No previous cell found, go to beginning of file
+            vim.api.nvim_win_set_cursor(0, {1, 0})
         end
     else
-        local pattern = '# [-+]$'
-        local found_row = vim.fn.search(pattern, 'bnW')
+        -- For Python files with # + and # - markers
+        local pattern = '# [+]$'
+        -- First find the current section
+        local current_section = vim.fn.search(pattern, 'bcnW')
         
-        if found_row == 0 then
+        if current_section == 0 then
+            -- No sections found above, go to beginning of file
             vim.api.nvim_win_set_cursor(0, {1, 0})
             return
         end
         
-        if cur_row == found_row then
-            vim.cmd('normal! k')
-            local new_row = vim.fn.search(pattern, 'bnW')
-            vim.api.nvim_win_set_cursor(0, {found_row, 0})
+        -- Save position before searching
+        local save_cursor = vim.api.nvim_win_get_cursor(0)
+        
+        -- Move to one line before current section to search backwards
+        vim.api.nvim_win_set_cursor(0, {current_section - 1, 0})
+        
+        -- Now search for previous section
+        local prev_section = vim.fn.search(pattern, 'bnW')
+        
+        if prev_section > 0 then
+            -- Jump to the line after the section marker
+            vim.api.nvim_win_set_cursor(0, {prev_section + 1, 0})
         else
-            vim.api.nvim_win_set_cursor(0, {found_row, 0})
+            -- No previous section found, go to beginning of file
+            vim.api.nvim_win_set_cursor(0, {1, 0})
         end
     end
     
@@ -245,6 +264,7 @@ function JumpDownSection()
     if is_quarto then
         local pattern = '^```{.*}$'
         vim.fn.search(pattern, 'W')
+        vim.cmd('normal! j')
     else
         vim.fn.search('# [-+]$', 'W')
     end
