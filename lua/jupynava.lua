@@ -282,9 +282,9 @@ function JumpDownSection()
         
         if not found then
             -- We're at the last cell, create a new one
-            vim.api.nvim_buf_set_lines(0, -1, -1, false, {"", "# +", "", "# -"})
+            vim.api.nvim_buf_set_lines(0, -1, -1, false, {"", "# +", ""})
             vim.defer_fn(function() 
-                vim.api.nvim_win_set_cursor(0, {vim.fn.line('$') - 1, 0}) 
+                vim.api.nvim_win_set_cursor(0, {vim.fn.line('$'), 0}) 
             end, 10)
         end
     end
