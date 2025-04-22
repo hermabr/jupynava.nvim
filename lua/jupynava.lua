@@ -260,13 +260,33 @@ end
 
 function JumpDownSection()
     local is_quarto = vim.fn.expand('%:e') == 'qmd'
+    local found = false
     
     if is_quarto then
         local pattern = '^```{.*}$'
-        vim.fn.search(pattern, 'W')
-        vim.cmd('normal! j')
+        -- Try to find the next code block
+        found = vim.fn.search(pattern, 'W') > 0
+        
+        if found then
+            vim.cmd('normal! j')
+        else
+            -- We're at the last cell, create a new one
+            vim.api.nvim_buf_set_lines(0, -1, -1, false, {"", "```{python}", "", "```"})
+            vim.defer_fn(function() 
+                vim.api.nvim_win_set_cursor(0, {vim.fn.line('$') - 1, 0}) 
+            end, 10)
+        end
     else
-        vim.fn.search('# [-+]$', 'W')
+        -- For Python files with # + and # - markers
+        found = vim.fn.search('# [-+]$', 'W') > 0
+        
+        if not found then
+            -- We're at the last cell, create a new one
+            vim.api.nvim_buf_set_lines(0, -1, -1, false, {"", "# +", "", "# -"})
+            vim.defer_fn(function() 
+                vim.api.nvim_win_set_cursor(0, {vim.fn.line('$') - 1, 0}) 
+            end, 10)
+        end
     end
     
     vim.cmd('normal! zz')
