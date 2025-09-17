@@ -210,7 +210,7 @@ function TermToggle(width, open_ipython)
 			vim.api.nvim_win_set_buf(new_win, term_buf)
 		else
 			if open_ipython then
-				vim.cmd("terminal ipython")
+				vim.cmd("terminal uv run ipython")
 			else
 				vim.cmd("terminal")
 			end
