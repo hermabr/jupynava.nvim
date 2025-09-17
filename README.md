@@ -4,6 +4,8 @@
 
 # Installation
 
+NOTE: This plugin is written to make my setup as efficient as possible and not to be a general purpose plugin. This means there are no customization supported and it might be a better idea to fork this or steal some ideas rather than installing it from source:)
+
 For `packer.nvim`:
 
 ```lua
